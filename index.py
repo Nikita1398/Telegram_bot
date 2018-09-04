@@ -1,73 +1,68 @@
-import requests  
-import datetime
+import requests
+from time import sleep
 
-class BotHandler:
+token = '672415727:AAHNvm7e62b5BxtR1Qw62SwlszD58H0zF-g'
+URL = 'https://api.telegram.org/bot' + token + '/'
 
-    def __init__(self, token):
-        self.token = token
-        self.api_url = "https://api.telegram.org/bot{}/".format(token)
+global last_update_id
+last_update_id = 0
 
-    def get_updates(self, offset=None, timeout=30):
-        method = 'getUpdates'
-        params = {'timeout': timeout, 'offset': offset}
-        resp = requests.get(self.api_url + method, params)
-        result_json = resp.json()['result']
-        return result_json
-
-    def send_message(self, chat_id, text):
-        params = {'chat_id': chat_id, 'text': text}
-        method = 'sendMessage'
-        resp = requests.post(self.api_url + method, params)
-        return resp
-
-    def get_last_update(self):
-        get_result = self.get_updates()
-
-        if len(get_result) > 0:
-            last_update = get_result[-1]
-        else:
-            last_update = get_result[len(get_result)]
-
-        return last_update
+def get_updates():
+    url = URL + 'getupdates'
+    r = requests.get(url)
+    return r.json()
 
 
-token = "672415727:AAHNvm7e62b5BxtR1Qw62SwlszD58H0zF-g"
-greet_bot = BotHandler(token)  
-greetings = ('здравствуй', 'привет', 'ку', 'здорово')  
-now = datetime.datetime.now()
+def get_message():
+    data = get_updates()
+    
+    last_object =data['result'][-1]
+    current_update_id = last_object['update_id']
+
+    global last_update_id
+    if last_update_id != current_update_id:
+        last_update_id = current_update_id
+        chat_id = last_object['message']['chat']['id']
+        message_text = last_object['message']['text']
+
+        message = {'chat_id': chat_id,
+                'text': message_text}
+        
+        return message
+    else:
+        return None
 
 
-def main():  
-    new_offset = None
-    today = now.day
-    hour = now.hour
+def send_message(chat_id, text="Wait a second"):
+    url = URL + 'sendmessage?chat_id={}&text={}'.format(chat_id, text)
+    requests.get(url)
+
+
+def get_btc():
+    url = 'https://yobit.net/api/2/btc_usd/ticker'
+    response = requests.get(url).content.json()
+    price = response['ticker']['last']
+    return str(price) + ' USD'
+
+
+def main():
+
+
 
     while True:
-        greet_bot.get_updates(new_offset)
+            answer = get_message()
 
-        last_update = greet_bot.get_last_update()
+            if answer != None:
+                chat_id = answer['chat_id']
+                text = answer['text']
 
-        last_update_id = last_update['update_id']
-        last_chat_text = last_update['message']['text']
-        last_chat_id = last_update['message']['chat']['id']
-        last_chat_name = last_update['message']['chat']['first_name']
+                if text == '/btc':
+                    send_message(chat_id, get_btc())
+            else:
+               continue 
+                
+            sleep(2)
 
-        if last_chat_text.lower() in greetings and today == now.day and 6 <= hour < 12:
-            greet_bot.send_message(last_chat_id, 'Доброе утро, {}'.format(last_chat_name))
-            today += 1
 
-        elif last_chat_text.lower() in greetings and today == now.day and 12 <= hour < 17:
-            greet_bot.send_message(last_chat_id, 'Добрый день, {}'.format(last_chat_name))
-            today += 1
-
-        elif last_chat_text.lower() in greetings and today == now.day and 17 <= hour < 23:
-            greet_bot.send_message(last_chat_id, 'Добрый вечер, {}'.format(last_chat_name))
-            today += 1
-
-        new_offset = last_update_id + 1
-
-if __name__ == '__main__':  
-    try:
-        main()
-    except KeyboardInterrupt:
-        exit()
+if __name__ == '__main__':
+    main()
