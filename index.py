@@ -1,68 +1,37 @@
+from flask import Flask
+from flask import request, jsonify
+
 import requests
-from time import sleep
+import json
+import re
 
-token = '672415727:AAHNvm7e62b5BxtR1Qw62SwlszD58H0zF-g'
-URL = 'https://api.telegram.org/bot' + token + '/'
+app = Flask(__name__)
 
-global last_update_id
-last_update_id = 0
+URL = 'https://api.telegram.org/bot683361381:AAEaVGfJ4WqmgwkLGki4ZQsSqNFDy5oc4tw/'
 
-def get_updates():
-    url = URL + 'getupdates'
-    r = requests.get(url)
+
+def send_message(chat_id, text='bla-bla'):
+    url = URL + 'sendMessage'
+    answer = {'chat_id': chat_id, 'text': text}
+    r = requests.post(url, json=answer)
     return r.json()
 
 
-def get_message():
-    data = get_updates()
-    
-    last_object =data['result'][-1]
-    current_update_id = last_object['update_id']
+@app.route('/', methods=['POST', 'GET'])
+def index():
+    if request.methods == 'POST':
+        r = request.get_json()
+        chat_id = r['message']['chat']['id']
+        message = r['message']['text']
 
-    global last_update_id
-    if last_update_id != current_update_id:
-        last_update_id = current_update_id
-        chat_id = last_object['message']['chat']['id']
-        message_text = last_object['message']['text']
+        pattern = r'/\w+'
 
-        message = {'chat_id': chat_id,
-                'text': message_text}
+        if re.search(pattern, message):
+            send_message(chat_id, 'Hello my friend')
         
-        return message
-    else:
-        return None
-
-
-def send_message(chat_id, text="Wait a second"):
-    url = URL + 'sendmessage?chat_id={}&text={}'.format(chat_id, text)
-    requests.get(url)
-
-
-def get_btc():
-    url = 'https://yobit.net/api/2/btc_usd/ticker'
-    response = requests.get(url).json()
-    price = response['ticker']['last']
-    return str(price) + ' USD'
-
-
-def main():
-
-
-
-    while True:
-            answer = get_message()
-
-            if answer != None:
-                chat_id = answer['chat_id']
-                text = answer['text']
-
-                if text == '/btc':
-                    send_message(chat_id, get_btc())
-            else:
-               continue 
-                
-            sleep(2)
+        return jsonify(r)
+    return '<h1>You are welcome</h1>'
 
 
 if __name__ == '__main__':
-    main()
+    app.run()
