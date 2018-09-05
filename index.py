@@ -1,1 +1,1 @@
-print ("<h1>test</h1>")
+return '<h1>test</h1>'
